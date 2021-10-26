@@ -7,7 +7,6 @@ app = Flask(__name__)
 
 @app.route('/api/v1/returns', methods=["POST"])
 def retrieve_performance():
-    print(request.json)
 
     # breakdown request arguments
     if 'start' not in request.json.keys():
@@ -18,17 +17,32 @@ def retrieve_performance():
     ticker = request.json['ticker']
     index = request.json['index']
 
+    stock = yf.Ticker(ticker)
+
     # download data
     data = yf.download(ticker + " " + index, start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"), group_by='tickers')
 
+    
     # percent change for both ticker and index
     ticker_performance = (data[ticker]['Close'][-1] - data[ticker]['Close'][0]) / data[ticker]['Close'][0]
     index_performance = (data[index]['Close'][-1] - data[index]['Close'][0]) / data[index]['Close'][0]
 
+    earnings = stock.earnings['Earnings'].values[-1]
+    eps = earnings / stock.info['sharesOutstanding']
+
     # return performance
-    return jsonify({'over/under': ticker_performance - index_performance,
-                    'index performance': index_performance,
-                    'ticker performance': ticker_performance})
+    return jsonify([ticker_performance - index_performance,
+                    index_performance,
+                    ticker_performance,
+                    stock.info['ebitda'],
+                    stock.info['priceToBook'],
+                    stock.info['currentPrice'] / eps])
+
+@app.route('/api/v1/categories', methods=["POST"])
+def retrieve_categories():
+    return jsonify(['Over/Under Performance', 'Ticker Performance', 
+                    'Index Performance', 'EBITDA', 'Price To Book', 
+                    'Price To Earnings'])
 
 
 @app.route('/', methods=["GET"])
